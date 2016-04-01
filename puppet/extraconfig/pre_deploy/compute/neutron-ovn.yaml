@@ -1,0 +1,38 @@
+heat_template_version: 2015-04-30
+
+description: Compute node hieradata for OVN
+
+parameters:
+  server:
+    description: ID of the compute node to apply this config to
+    type: string
+  OVNSouthboundServerPort:
+    description: Port of the Southbound DB Server
+    type: number
+    default: 6642
+
+resources:
+  ComputeOVNConfig:
+    type: OS::Heat::StructuredConfig
+    properties:
+      group: os-apply-config
+      config:
+        hiera:
+          datafiles:
+            neutron_ovn_data:
+              mapped_data:
+                ovn::southbound::port: {get_input: ovn_sbdb_port}
+                
+
+  ComputeOVNDeployment:
+    type: OS::Heat::StructuredDeployment
+    properties:
+      config: {get_resource: ComputeOVNConfig}
+      server: {get_param: server}
+      input_values:
+        ovn_sbdb_port: {get_param: OVNSouthboundServerPort}
+
+outputs:
+  deploy_stdout:
+    description: Output of the extra hiera data deployment
+    value: {get_attr: [ComputeOVNDeployment, deploy_stdout]}

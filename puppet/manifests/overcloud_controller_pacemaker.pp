@@ -622,6 +622,19 @@ if hiera('step') >= 4 {
       metadata_proxy_shared_secret => hiera('nova::api::neutron_metadata_proxy_shared_secret'),
     }
   }
+  if hiera('neutron::core_plugin') == 'networking_ovn.plugin.OVNPlugin' {
+    if $controller_node_ips[0] == $ipaddress {
+      include ::ovn::northd
+    }
+
+    $ovn_nb_port = hiera('ovn::northbound::port')
+    class { '::neutron::plugins::ovn':
+      ovsdb_connection        => 'tcp:${controller_node_ips[0]}:${ovn_nb_port}',
+      ovsb_connection_timeout => hiera('neutron::plugins::ovn::ovsdb_connection_timeout'),
+      neutron_sync_mode       => hiera('neutron::plugins::ovn::neutron_sync_mode'),
+      vif_type                => hiera('neutron::plugins::ovn::vif_type')
+    }
+  }
   if hiera('neutron::enable_dhcp_agent',true) {
     class { '::neutron::agents::dhcp' :
       manage_service => false,
@@ -1434,6 +1447,18 @@ if hiera('step') >= 5 {
       }
     }
 
+    if hiera('neutron::core_plugin') == 'networking_ovn.plugin.OVNPlugin' {
+      #midonet-chain chain keystone-->neutron-server-->dhcp-->metadata->tomcat
+      pacemaker::constraint::base { 'neutron-server-to-dhcp-agent-constraint':
+        constraint_type => 'order',
+        first_resource  => "${::neutron::params::server_service}-clone",
+        second_resource => "${::neutron::params::dhcp_agent_service}-clone",
+        first_action    => 'start',
+        second_action   => 'start',
+        require         => [Pacemaker::Resource::Service[$::neutron::params::server_service],
+                            Pacemaker::Resource::Service[$::neutron::params::dhcp_agent_service]],
+      }
+    }
     # Nova
     pacemaker::resource::service { $::nova::params::api_service_name :
       clone_params => 'interleave=true',

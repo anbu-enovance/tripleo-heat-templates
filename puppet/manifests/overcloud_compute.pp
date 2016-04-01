@@ -166,6 +166,15 @@ elsif hiera('neutron::core_plugin') == 'networking_plumgrid.neutron.plugins.plug
     content => "nova ALL=(root) NOPASSWD: /opt/pg/bin/ifc_ctl_pp *\n",
   }
 }
+elsif hiera('neutron::core_plugin') == 'networking_ovn.plugin.OVNPlugin' {
+  $controller_node_ips = split(hiera('controller_node_ips'), ',')
+  $ovn_sbdb_port = hiera('ovn::southbound::port')
+  class { '::ovn::controller':
+    ovn_remote     => "tcp:${controller_node_ips[0]}:${ovn_sbdb_port}",
+    ovn_encap_ip   => $ipaddress,
+    ovn_encap_type => 'geneve'
+  }
+}
 else {
 
   # NOTE: this code won't live in puppet-neutron until Neutron OVS agent

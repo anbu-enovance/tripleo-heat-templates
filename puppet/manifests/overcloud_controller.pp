@@ -327,9 +327,7 @@ if hiera('step') >= 4 {
       metadata_proxy_shared_secret => hiera('nova::api::neutron_metadata_proxy_shared_secret'),
     }
   } else {
-    include ::neutron::agents::l3
     include ::neutron::agents::dhcp
-    include ::neutron::agents::metadata
 
     file { '/etc/neutron/dnsmasq-neutron.conf':
       content => hiera('neutron_dnsmasq_options'),
@@ -342,14 +340,33 @@ if hiera('step') >= 4 {
     # If the value of core plugin is set to 'midonet',
     # skip all the ML2 configuration
     if hiera('neutron::core_plugin') == 'midonet.neutron.plugin_v1.MidonetPluginV2' {
+      include ::neutron::agents::l3
+      include ::neutron::agents::metadata
 
       class {'::neutron::plugins::midonet':
         midonet_api_ip    => hiera('tripleo::loadbalancer::public_virtual_ip'),
         keystone_tenant   => hiera('neutron::server::auth_tenant'),
         keystone_password => hiera('neutron::server::auth_password')
       }
+      Service['neutron-server'] -> Service['neutron-l3']
+      Service['neutron-server'] -> Service['neutron-metadata']
+    } elsif hiera('neutron::core_plugin') == 'networking_ovn.plugin.OVNPlugin' {
+
+      if $controller_node_ips[0] == $ipaddress {
+        include ::ovn::northd
+      }
+
+      $ovn_nb_port = hiera('ovn::northbound::port')
+      class { '::neutron::plugins::ovn':
+        ovsdb_connection         => 'tcp:${controller_node_ips[0]}:${ovn_nb_port}',
+        ovsdb_connection_timeout => hiera('neutron::plugins::ovn::ovsdb_connection_timeout'),
+        neutron_sync_mode        => hiera('neutron::plugins::ovn::neutron_sync_mode'),
+        vif_type                 => hiera('neutron::plugins::ovn::vif_type')
+      }
     } else {
 
+      include ::neutron::agents::l3
+      include ::neutron::agents::metadata
       include ::neutron::plugins::ml2
       include ::neutron::agents::ml2::ovs
 
@@ -387,11 +404,11 @@ if hiera('step') >= 4 {
         'DEFAULT/ovs_use_veth': value => hiera('neutron_ovs_use_veth', false);
       }
       Service['neutron-server'] -> Service['neutron-ovs-agent-service']
+      Service['neutron-server'] -> Service['neutron-l3']
+      Service['neutron-server'] -> Service['neutron-metadata']
     }
 
     Service['neutron-server'] -> Service['neutron-dhcp-service']
-    Service['neutron-server'] -> Service['neutron-l3']
-    Service['neutron-server'] -> Service['neutron-metadata']
   }
 
   include ::cinder

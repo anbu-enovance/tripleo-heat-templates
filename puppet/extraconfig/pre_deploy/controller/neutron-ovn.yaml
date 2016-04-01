@@ -1,0 +1,66 @@
+heat_template_version: 2015-04-30
+
+description: Controller hieradata for Neutron OVN configuration
+
+parameters:
+  server:
+    description: ID of the controller node to apply this config to
+    type: string
+  OVNNorthboundServerPort:
+    description: Port of the OVN Northbound DB server
+    type: number
+    default: 6641
+  OVNDbConnectionTimeout:
+    description: Timeout in seconds for the OVSDB connection transaction
+    type: number
+    default: 60
+  OVNVifType:
+    description: Type of VIF to be used for ports
+    type: string
+    default: ovs
+    constraints:
+      - allowed_values: 
+        - ovs
+        - vhostuser
+  OVNNeutronSyncMode:
+    description: The synchronization mode of OVN with Neutron DB
+    type: string
+    default: log
+    constraints:
+      - allowed_values:
+        - log
+        - off
+        - repair
+
+resources:
+  ControllerOVNConfig:
+    type: OS::Heat::StructuredConfig
+    properties:
+      group: os-apply-config
+      config:
+        hiera:
+          datafiles:
+            neutron_ovn_data:
+              mapped_data:
+                ovn::northbound::port: {get_input: ovn_nbdb_port}
+                neutron::plugins::ovn::ovsdb_connection_timeout: {get_input: ovsdb_connection_timeout}
+                neutron::plugins::ovn::neutron_sync_mode: {get_input: neutron_sync_mode}
+                neutron::plugins::ovn::ovn_l3_mode: true
+                neutron::plugins::ovn::vif_type: {get_input: vif_type}
+
+  ControllerOVNDeployment:
+    type: OS::Heat::StructuredDeployment
+    properties:
+      config: {get_resource: ControllerOVNConfig}
+      server: {get_param: server}
+      input_values:
+        ovn_nbdb_port: {get_param: OVNNorthboundServerPort}
+        ovsdb_connection_timeout: {get_param: OVNDbConnectionTimeout}
+        neutron_sync_mode: {get_param: OVNNeutronSyncMode}
+        vif_type: {get_param: OVNVifType}
+
+
+outputs:
+  deploy_stdout:
+    description: Output of the extra hiera data deployment
+    value: {get_attr: [ControllerOVNDeployment, deploy_stdout]}
