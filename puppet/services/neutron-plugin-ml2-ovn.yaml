@@ -18,6 +18,10 @@ parameters:
     description: Mapping of service endpoint -> protocol. Typically set
                  via parameter_defaults in the resource registry.
     type: json
+  OVNSouthboundServerPort:
+    description: Port of the OVN Southbound DB server
+    type: number
+    default: 6642
   OVNDbConnectionTimeout:
     description: Timeout in seconds for the OVSDB connection transaction
     type: number
@@ -61,10 +65,15 @@ outputs:
       config_settings:
         map_merge:
           - get_attr: [NeutronMl2Base, role_data, config_settings]
-          - neutron::plugins::ovn::ovsdb_connection_timeout: {get_param: OVNDbConnectionTimeout}
-            neutron::plugins::ovn::neutron_sync_mode: {get_param: OVNNeutronSyncMode}
-            neutron::plugins::ovn::ovn_l3_mode: true
-            neutron::plugins::ovn::vif_type: {get_param: OVNVifType}
+          - ovn::southbound::port: {get_param: OVNSouthboundServerPort}
+            neutron::plugins::ml2::ovn::ovsdb_connection_timeout: {get_param: OVNDbConnectionTimeout}
+            neutron::plugins::ml2::ovn::neutron_sync_mode: {get_param: OVNNeutronSyncMode}
+            neutron::plugins::ml2::ovn::ovn_l3_mode: true
+            neutron::plugins::ml2::ovn::vif_type: {get_param: OVNVifType}
             neutron::server::qos_notification_drivers: {get_param: OVNQosDriver}
+            neutron::plugins::ml2::type_drivers: [ 'geneve', 'vlan', 'flat' ]
+            neutron::plugins::ml2::tenant_network_types: [ 'geneve' ]
+            neutron::plugins::ml2::max_header_size: 38
+            neutron::service_plugins: ['qos', 'networking_ovn.l3.l3_ovn.OVNL3RouterPlugin']
       step_config: |
         include ::tripleo::profile::base::neutron::plugins::ml2
