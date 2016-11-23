@@ -3,11 +3,12 @@
 resource_registry:
   OS::TripleO::Services::NeutronL3Agent: OS::Heat::None
   OS::TripleO::Services::NeutronOvsAgent: OS::Heat::None
-  OS::TripleO::Services::NeutronCorePlugin: OS::TripleO::Services::NeutronCorePluginML2OVN
+  OS::TripleO::Services::NeutronCorePlugin: OS::TripleO::Services::NeutronCorePluginML2OVNHa
   OS::TripleO::Services::ComputeNeutronCorePlugin: ../puppet/services/neutron-compute-plugin-ovn.yaml
   OS::TripleO::Services::NeutronDhcpAgent: OS::Heat::None
   OS::TripleO::Services::ComputeNeutronOvsAgent: OS::Heat::None
-  OS::TripleO::Services::OVNNorthd: ../puppet/services/ovn-dbs.yaml
+  OS::TripleO::Services::OVNNorthd: ../puppet/services/pacemaker/ovn-dbs-ha.yaml
+  OS::TripleO::Services::NeutronCorePluginML2OVNHa: ../puppet/services/pacemaker/neutron-plugin-ml2-ovn.yaml
 
 
 parameter_defaults:
